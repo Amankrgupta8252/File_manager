@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
@@ -116,21 +117,28 @@ class _InternalStoragePageState extends State<InternalStoragePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         title: Text(
             isSelectionMode ? "${selectedEntities.length} Selected" : widget.title,
-            style: const TextStyle(color: Colors.black, fontSize: 18)
+            style: const TextStyle(fontSize: 18)
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 0,
+        iconTheme: const IconThemeData(),
         actions: [
           if (isSelectionMode)
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete,),
               onPressed: _deleteSelectedItems,
             ),
+
+          IconButton(onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchPage()),
+            );
+          }, icon: const Icon(Icons.search, )),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, )),
         ],
       ),
       body: isLoading

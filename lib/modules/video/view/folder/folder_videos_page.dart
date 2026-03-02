@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
@@ -108,6 +109,14 @@ class _FolderVideosPageState extends State<FolderVideosPage> {
               icon: const Icon(Icons.delete, color: Colors.black),
               onPressed: _deleteSelectedVideos, // Right side delete option
             ),
+
+          IconButton(onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchPage()),
+            );
+          }, icon: const Icon(Icons.search, )),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, )),
         ],
       ),
       body: isLoading

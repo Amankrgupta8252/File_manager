@@ -1,6 +1,7 @@
 import 'package:file_manager/modules/apps/view/apps_list_page.dart';
 import 'package:file_manager/modules/audio/view/audio_folders_page.dart';
 import 'package:file_manager/modules/document/view/doc_folders_page.dart';
+import 'package:file_manager/modules/downloads/view/downloads_page.dart';
 import 'package:file_manager/modules/favorites/view/favorites_page.dart';
 import 'package:file_manager/modules/images/view/image_folders_page.dart';
 import 'package:file_manager/modules/internal_storage/view/InternalStoragePage.dart';
@@ -10,7 +11,6 @@ import 'package:file_manager/modules/trash/view/system_bin_page.dart';
 import 'package:file_manager/modules/video/view/video_folders_page.dart';
 import 'package:file_manager/sd_card/view/SDCardStoragePage.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:file_manager/models/category_model.dart';
 import 'package:file_manager/data/storage_provider.dart';
@@ -75,8 +75,9 @@ class _HomePageState extends State<HomePage> {
       FileCategory(
         name: "Downloads",
         icon: Icons.file_download_outlined,
-        color: Colors.purple,
-        count: "12 files",
+        color: Colors.brown,
+        count: "${fileStorage.downloadsCount} files",
+        page:  DownloadsPage()
       ),
       FileCategory(
         name: "Apps",
@@ -94,10 +95,8 @@ class _HomePageState extends State<HomePage> {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
           "My Files",

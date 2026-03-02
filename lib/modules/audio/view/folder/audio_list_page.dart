@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:open_file/open_file.dart';
@@ -96,6 +97,14 @@ class _AudioListPageState extends State<AudioListPage> {
               icon: const Icon(Icons.delete, color: Colors.black),
               onPressed: _deleteSelectedAudios, // AppBar delete button
             ),
+
+          IconButton(onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchPage()),
+            );
+          }, icon: const Icon(Icons.search, )),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, )),
         ],
       ),
       body: isLoading

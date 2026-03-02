@@ -101,10 +101,10 @@ class _AppsListPageState extends State<AppsListPage> {
                   // --- UNINSTALL BUTTON ---
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.black),
-                    onPressed: () => _uninstallApp(app.packageName!),
+                    onPressed: () => _uninstallApp(app.packageName),
                   ),
-                  onTap: () => InstalledApps.startApp(app.packageName!),
-                  onLongPress: () => InstalledApps.openSettings(app.packageName!),
+                  onTap: () => InstalledApps.startApp(app.packageName),
+                  onLongPress: () => InstalledApps.openSettings(app.packageName),
                 ),
               );
             },
