@@ -200,7 +200,6 @@ class _CleanUpPageState extends State<CleanUpPage> with TickerProviderStateMixin
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: Colors.indigoAccent
-
         ),
         child: Material(
           color: Colors.transparent,

@@ -17,19 +17,16 @@ class AppsListPage extends StatefulWidget {
 }
 
 class _AppsListPageState extends State<AppsListPage> {
-  // Key use karenge FutureBuilder ko refresh karne ke liye
   Key _refreshKey = UniqueKey();
 
   // --- UNINSTALL FUNCTION ---
   Future<void> _uninstallApp(String packageName) async {
     try {
-      // Android ka system uninstall popup open hoga
       bool? isUninstalled = await InstalledApps.uninstallApp(packageName);
 
-      // Agar user ne "OK" kiya aur app uninstall ho gaya
       if (isUninstalled == true) {
         setState(() {
-          _refreshKey = UniqueKey(); // List ko refresh karein
+          _refreshKey = UniqueKey();
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -45,16 +42,13 @@ class _AppsListPageState extends State<AppsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        title: Text(widget.title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: FutureBuilder<List<AppInfo>>(
-        key: _refreshKey, // Key refresh hote hi list update hogi
+        key: _refreshKey,
         future: InstalledApps.getInstalledApps(
           excludeSystemApps: widget.excludeSystem,
           withIcon: true,
