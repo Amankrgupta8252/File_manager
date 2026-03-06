@@ -39,12 +39,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Favorites", style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        title: const Text("Favorites", ),
+        // backgroundColor: Colors.white,
         elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
+        // iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

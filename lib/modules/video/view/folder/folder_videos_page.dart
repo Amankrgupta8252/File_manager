@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:file_manager/modules/search/view/search_page.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../../file_explorer/view/file_action_bar.dart';
 
 class FolderVideosPage extends StatefulWidget {
   final AssetPathEntity folder;
@@ -15,7 +18,7 @@ class FolderVideosPage extends StatefulWidget {
 
 class _FolderVideosPageState extends State<FolderVideosPage> {
   List<AssetEntity> videoAssets = [];
-  Set<AssetEntity> selectedVideos = {}; // Selected videos store karne ke liye
+  Set<AssetEntity> selectedVideos = {};
   bool isLoading = true;
   bool isSelectionMode = false;
 
@@ -39,29 +42,142 @@ class _FolderVideosPageState extends State<FolderVideosPage> {
     }
   }
 
-  // --- DELETE SELECTED VIDEOS LOGIC ---
-  Future<void> _deleteSelectedVideos() async {
+  // --- ACTION BAR FUNCTIONS ---
+
+  Future<void> _handleShare() async {
+    final files = await getSelectedFiles();
+
+    if (files.isNotEmpty) {
+      await Share.shareXFiles(files.map((f) => XFile(f.path)).toList());
+    }
+  }
+
+  Future<void> _handleCopy() async {
+    final files = await getSelectedFiles();
+
+    if (files.isEmpty) return;
+
+    String? destination = await FilePicker.platform.getDirectoryPath();
+
+    if (destination == null) return;
+
+    for (var file in files) {
+      final newPath = "$destination/${file.uri.pathSegments.last}";
+
+      await file.copy(newPath);
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Files copied successfully")),
+      );
+    }
+  }
+
+  // ---------------- MOVE ----------------
+
+  Future<void> _handleMove() async {
+    final files = await getSelectedFiles();
+
+    if (files.isEmpty) return;
+
+    String? destination = await FilePicker.platform.getDirectoryPath();
+
+    if (destination == null) return;
+
+    for (var file in files) {
+      final newPath = "$destination/${file.uri.pathSegments.last}";
+
+      await file.rename(newPath);
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Files moved successfully")));
+    }
+  }
+
+  // ---------------- RENAME ----------------
+
+  void _handleRename() {
+    if (selectedVideos.length != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select only one image")),
+      );
+      return;
+    }
+
+    final AssetEntity asset = selectedVideos.first;
+
+    final controller = TextEditingController(text: asset.title);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Rename Image"),
+
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: "Enter new name"),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+
+            TextButton(
+              onPressed: () {
+                debugPrint("New name: ${controller.text}");
+
+                Navigator.pop(context);
+              },
+              child: const Text("Rename"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  Future<void> _handleDelete() async {
     if (selectedVideos.isEmpty) return;
 
-    try {
-      final ids = selectedVideos.map((e) => e.id).toList();
-      // Android 11+ mein system popup aayega
-      final List<String> result = await PhotoManager.editor.deleteWithIds(ids);
+    // Confirm Dialog
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Videos?"),
+        content: Text("${selectedVideos.length} videos permanently delete ho jayenge."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
 
-      if (result.isNotEmpty) {
-        setState(() {
-          videoAssets.removeWhere((element) => selectedVideos.contains(element));
-          selectedVideos.clear();
-          isSelectionMode = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Selected videos deleted successfully")),
-          );
+    if (confirm == true) {
+      try {
+        final ids = selectedVideos.map((e) => e.id).toList();
+        final List<String> result = await PhotoManager.editor.deleteWithIds(ids);
+
+        if (result.isNotEmpty) {
+          setState(() {
+            videoAssets.removeWhere((element) => selectedVideos.contains(element));
+            selectedVideos.clear();
+            isSelectionMode = false;
+          });
         }
+      } catch (e) {
+        debugPrint("Delete Error: $e");
       }
-    } catch (e) {
-      debugPrint("Delete Error: $e");
     }
   }
 
@@ -90,33 +206,43 @@ class _FolderVideosPageState extends State<FolderVideosPage> {
     }
   }
 
+  Future<List<File>> getSelectedFiles() async {
+    List<File> files = [];
+
+    for (var asset in selectedVideos) {
+      final File? f = await asset.originFile;
+
+      if (f != null) files.add(f);
+    }
+
+    return files;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
       appBar: AppBar(
         scrolledUnderElevation: 0,
+        leading: isSelectionMode
+            ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() {
+          isSelectionMode = false;
+          selectedVideos.clear();
+        }))
+            : const BackButton(),
         title: Text(
           isSelectionMode ? "${selectedVideos.length} Selected" : widget.folder.name,
-          style: const TextStyle(color: Colors.black, fontSize: 18),
+          style: const TextStyle(fontSize: 18),
         ),
-        backgroundColor: Colors.white,
+        // backgroundColor: Colors.white,
         elevation: 0.5,
-        iconTheme: const IconThemeData(color: Colors.black),
+        // iconTheme: const IconThemeData(color: Colors.black),
         actions: [
-          if (isSelectionMode)
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.black),
-              onPressed: _deleteSelectedVideos, // Right side delete option
-            ),
-
-          IconButton(onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchPage()),
-            );
-          }, icon: const Icon(Icons.search, )),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, )),
+          if (!isSelectionMode)
+            IconButton(onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchPage()));
+            }, icon: const Icon(Icons.search)),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
         ],
       ),
       body: isLoading
@@ -136,25 +262,16 @@ class _FolderVideosPageState extends State<FolderVideosPage> {
           final isSelected = selectedVideos.contains(video);
 
           return GestureDetector(
-            onTap: () {
-              if (isSelectionMode) {
-                _toggleSelection(video);
-              } else {
-                _playVideo(video);
-              }
-            },
+            onTap: () => isSelectionMode ? _toggleSelection(video) : _playVideo(video),
             onLongPress: () => _toggleSelection(video),
             child: Stack(
               children: [
-                // Thumbnail
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       decoration: BoxDecoration(
-                        border: isSelected
-                            ? Border.all(color: Colors.blue, width: 3)
-                            : null,
+                        border: isSelected ? Border.all(color: Colors.blue, width: 3) : null,
                       ),
                       child: AssetEntityImage(
                         video,
@@ -165,46 +282,45 @@ class _FolderVideosPageState extends State<FolderVideosPage> {
                     ),
                   ),
                 ),
-                // Overlay & Play Icon
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: isSelected ? Colors.black26 : Colors.black12,
+                      color: isSelected ? Colors.blue.withOpacity(0.2) : Colors.black12,
                     ),
-                    child: const Center(
-                      child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
-                    ),
+                    child: isSelectionMode
+                        ? null
+                        : const Center(child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40)),
                   ),
                 ),
-                // Duration Badge
                 Positioned(
                   bottom: 8,
                   right: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _formatDuration(video.duration),
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6)),
+                    child: Text(_formatDuration(video.duration), style: const TextStyle(color: Colors.white, fontSize: 10)),
                   ),
                 ),
-                // Checkmark for selection
                 if (isSelected)
-                  const Positioned(
-                    top: 5,
-                    right: 5,
-                    child: Icon(Icons.check_circle, color: Colors.blue),
-                  ),
+                  const Positioned(top: 5, right: 5, child: Icon(Icons.check_circle, color: Colors.blue)),
               ],
             ),
           );
         },
       ),
+
+      // --- INTEGRATING COMMON ACTION BAR ---
+      bottomNavigationBar: isSelectionMode
+          ? FileActionBar(
+        selectedCount: selectedVideos.length,
+        onShare: _handleShare,
+        onCopy: _handleCopy,
+        onMove: _handleMove,
+        onRename: _handleRename,
+        onDelete: _handleDelete,
+      )
+          : null,
     );
   }
 }

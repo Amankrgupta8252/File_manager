@@ -1,17 +1,24 @@
 import 'dart:io';
-import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:file_manager/data/storage_provider.dart';
+import '../../modules/search/view/search_page.dart';
+import '../../modules/file_explorer/view/file_action_bar.dart';
 
 class SDCardStoragePage extends StatefulWidget {
   final String? customPath;
   final String title;
 
-  const SDCardStoragePage({super.key, this.customPath, this.title = "SD Card"});
+  const SDCardStoragePage({
+    super.key,
+    this.customPath,
+    this.title = "SD Card",
+  });
 
   @override
   State<SDCardStoragePage> createState() => _SDCardStoragePageState();
@@ -20,6 +27,7 @@ class SDCardStoragePage extends StatefulWidget {
 class _SDCardStoragePageState extends State<SDCardStoragePage> {
   List<FileSystemEntity> files = [];
   Set<FileSystemEntity> selectedFiles = {};
+
   bool isSelectionMode = false;
   bool isLoading = true;
   String? errorMessage;
@@ -27,24 +35,30 @@ class _SDCardStoragePageState extends State<SDCardStoragePage> {
   @override
   void initState() {
     super.initState();
-    _checkPermissionAndLoad();
+    _checkPermission();
   }
 
-  Future<void> _checkPermissionAndLoad() async {
+  // ---------------- PERMISSION ----------------
+
+  Future<void> _checkPermission() async {
     if (await Permission.manageExternalStorage.request().isGranted) {
-      _fetchFiles();
+      _loadFiles();
     } else {
       setState(() {
         isLoading = false;
-        errorMessage = "Permission Denied! 'All Files Access' enable karein.";
+        errorMessage = "Storage permission denied.";
       });
     }
   }
 
-  Future<void> _fetchFiles() async {
+  // ---------------- LOAD FILES ----------------
+
+  Future<void> _loadFiles() async {
     setState(() => isLoading = true);
+
     try {
-      String? path = widget.customPath ?? context.read<StorageProvider>().sdCardPath;
+      String? path =
+          widget.customPath ?? context.read<StorageProvider>().sdCardPath;
 
       if (path == null || path.isEmpty) {
         setState(() {
@@ -54,214 +68,363 @@ class _SDCardStoragePageState extends State<SDCardStoragePage> {
         return;
       }
 
-      final directory = Directory(path);
-      if (await directory.exists()) {
-        final List<FileSystemEntity> dirFiles = await directory.list().toList();
-        dirFiles.sort((a, b) {
+      final dir = Directory(path);
+
+      if (await dir.exists()) {
+        final data = await dir.list().toList();
+
+        data.sort((a, b) {
           if (a is Directory && b is! Directory) return -1;
           if (a is! Directory && b is Directory) return 1;
           return a.path.toLowerCase().compareTo(b.path.toLowerCase());
         });
 
         setState(() {
-          files = dirFiles;
+          files = data;
           isLoading = false;
+          errorMessage = null;
         });
       }
     } catch (e) {
       setState(() {
-        errorMessage = "Access Denied: SD Card restricted ho sakta hai.";
+        errorMessage = "Unable to access SD Card";
         isLoading = false;
       });
     }
   }
 
-  // --- DELETE LOGIC ---
-  Future<void> _confirmDelete() async {
-    bool? confirm = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Items?"),
-        content: Text("${selectedFiles.length} items permanently delete ho jayenge."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() => isLoading = true);
-      for (var file in selectedFiles) {
-        try {
-          if (file is Directory) {
-            await file.delete(recursive: true);
-          } else {
-            await file.delete();
-          }
-        } catch (e) {
-          debugPrint("Delete Error: $e");
-        }
-      }
-
-      // Refresh list
-      selectedFiles.clear();
-      isSelectionMode = false;
-      await _fetchFiles();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Selected items deleted")),
-      );
-    }
-  }
+  // ---------------- SELECTION ----------------
 
   void _toggleSelection(FileSystemEntity file) {
     setState(() {
       if (selectedFiles.contains(file)) {
         selectedFiles.remove(file);
-        if (selectedFiles.isEmpty) isSelectionMode = false;
       } else {
         selectedFiles.add(file);
-        isSelectionMode = true;
       }
+
+      isSelectionMode = selectedFiles.isNotEmpty;
     });
   }
+
+  // ---------------- GET FILES ----------------
+
+  Future<List<File>> getSelectedFiles() async {
+    List<File> files = [];
+
+    for (var entity in selectedFiles) {
+      if (entity is File) {
+        files.add(entity);
+      }
+
+      if (entity is Directory) {
+        final dir = Directory(entity.path);
+
+        try {
+          final items = dir.listSync(recursive: true);
+
+          for (var item in items) {
+            if (item is File) {
+              files.add(item);
+            }
+          }
+        } catch (e) {
+          debugPrint("Directory read error: $e");
+        }
+      }
+    }
+
+    return files;
+  }
+
+  // ---------------- SHARE ----------------
+
+  Future<void> _shareFiles() async {
+    List<XFile> shareFiles = [];
+
+    for (var f in selectedFiles) {
+      if (f is File) {
+        shareFiles.add(XFile(f.path));
+      }
+    }
+
+    if (shareFiles.isNotEmpty) {
+      await Share.shareXFiles(shareFiles);
+    }
+  }
+
+  // ---------------- COPY ----------------
+
+  Future<void> _handleCopy() async {
+    final files = await getSelectedFiles();
+
+    if (files.isEmpty) return;
+
+    String? destination = await FilePicker.platform.getDirectoryPath();
+
+    if (destination == null) return;
+
+    for (var file in files) {
+      final newPath = "$destination/${p.basename(file.path)}";
+      await file.copy(newPath);
+    }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Files copied")));
+  }
+
+  // ---------------- MOVE ----------------
+
+  Future<void> _handleMove() async {
+    final files = await getSelectedFiles();
+
+    if (files.isEmpty) return;
+
+    String? destination = await FilePicker.platform.getDirectoryPath();
+
+    if (destination == null) return;
+
+    for (var file in files) {
+      final newPath = "$destination/${p.basename(file.path)}";
+
+      await file.copy(newPath);
+      await file.delete();
+    }
+
+    _loadFiles();
+
+    setState(() {
+      selectedFiles.clear();
+      isSelectionMode = false;
+    });
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Files moved")));
+  }
+
+  // ---------------- RENAME ----------------
+
+  void _handleRename() {
+    if (selectedFiles.length != 1) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Select one item")));
+      return;
+    }
+
+    final entity = selectedFiles.first;
+    final controller = TextEditingController(text: p.basename(entity.path));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Rename"),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          TextButton(
+            onPressed: () async {
+              String dir = p.dirname(entity.path);
+              String newPath = p.join(dir, controller.text);
+
+              await entity.rename(newPath);
+
+              Navigator.pop(context);
+
+              selectedFiles.clear();
+              isSelectionMode = false;
+
+              _loadFiles();
+            },
+            child: const Text("Rename"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- DELETE ----------------
+
+  Future<void> _deleteFiles() async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Items?"),
+        content: Text("${selectedFiles.length} items will be deleted."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child:
+              const Text("Delete", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      for (var file in selectedFiles) {
+        await file.delete(recursive: true);
+      }
+
+      selectedFiles.clear();
+      isSelectionMode = false;
+
+      _loadFiles();
+    }
+  }
+
+  // ---------------- UI ----------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
+
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.black),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        // backgroundColor: Colors.white,
+        scrolledUnderElevation: 0,
+        leading: isSelectionMode
+            ? IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            setState(() {
+              selectedFiles.clear();
+              isSelectionMode = false;
+            });
+          },
+        )
+            : const BackButton(),
         title: Text(
-          isSelectionMode ? "${selectedFiles.length} Selected" : widget.title,
-          style: const TextStyle(color: Colors.black, fontSize: 18),
+          isSelectionMode
+              ? "${selectedFiles.length} Selected"
+              : widget.title,
+          style:
+          const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         actions: [
-          if (isSelectionMode)
+          if (!isSelectionMode)
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.black),
-              onPressed: _confirmDelete,
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SearchPage()));
+              },
             ),
-          IconButton(onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchPage()),
-            );
-          }, icon: const Icon(Icons.search, )),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert, )),
+          const SizedBox(width: 10)
         ],
       ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
-          ? _buildErrorUI()
-          : files.isEmpty
-          ? const Center(child: Text("Folder is empty"))
+          ? Center(child: Text(errorMessage!))
           : RefreshIndicator(
-        onRefresh: _fetchFiles,
+        onRefresh: _loadFiles,
         child: ListView.separated(
           itemCount: files.length,
-          separatorBuilder: (context, index) => const Divider(height: 1, indent: 70),
+          separatorBuilder: (_, __) =>
+          const Divider(indent: 70),
           itemBuilder: (context, index) {
             final entity = files[index];
-            final String fileName = p.basename(entity.path);
-            final bool isDir = entity is Directory;
-            final bool isSelected = selectedFiles.contains(entity);
+            final name = p.basename(entity.path);
+
+            bool isDir = entity is Directory;
+            bool isSelected =
+            selectedFiles.contains(entity);
 
             return ListTile(
               selected: isSelected,
-              selectedTileColor: Colors.blue.withOpacity(0.05),
+              selectedTileColor:
+              Colors.blue.withOpacity(0.1),
               leading: Stack(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (isDir ? Colors.orange : Colors.blue).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      isDir ? Icons.folder : _getFileIcon(fileName),
-                      color: isDir ? Colors.orange : Colors.blue,
-                    ),
+                  Icon(
+                    isDir
+                        ? Icons.folder
+                        : Icons.insert_drive_file,
+                    size: 32,
+                    color: isDir
+                        ? Colors.orange
+                        : Colors.blue,
                   ),
                   if (isSelected)
                     const Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Icon(Icons.check_circle, size: 18, color: Colors.blue),
-                    ),
+                      child: Icon(Icons.check_circle,
+                          size: 18, color: Colors.blue),
+                    )
                 ],
               ),
-              title: Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(isDir ? "Folder" : _getFileSize(entity as File)),
+              title: Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              subtitle:
+              Text(isDir ? "Folder" : _fileSize(entity)),
               onTap: () {
                 if (isSelectionMode) {
                   _toggleSelection(entity);
-                } else {
-                  if (isDir) {
-                    Navigator.push(
+                } else if (isDir) {
+                  Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SDCardStoragePage(
-                          customPath: entity.path,
-                          title: fileName,
-                        ),
-                      ),
-                    );
-                  } else {
-                    OpenFile.open(entity.path);
-                  }
+                          builder: (_) =>
+                              SDCardStoragePage(
+                                customPath: entity.path,
+                                title: name,
+                              )));
+                } else {
+                  OpenFile.open(entity.path);
                 }
               },
               onLongPress: () => _toggleSelection(entity),
               trailing: isSelectionMode
                   ? Checkbox(
                   value: isSelected,
-                  onChanged: (_) => _toggleSelection(entity)
-              )
-                  : const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                  onChanged: (_) =>
+                      _toggleSelection(entity))
+                  : const Icon(Icons.chevron_right),
             );
           },
         ),
       ),
+
+      bottomNavigationBar: isSelectionMode
+          ? FileActionBar(
+        selectedCount: selectedFiles.length,
+        onShare: _shareFiles,
+        onCopy: _handleCopy,
+        onMove: _handleMove,
+        onRename: _handleRename,
+        onDelete: _deleteFiles,
+      )
+          : null,
     );
   }
 
-  // --- HELPERS (Baki code same) ---
-  IconData _getFileIcon(String name) {
-    if (name.endsWith('.pdf')) return Icons.picture_as_pdf;
-    if (name.endsWith('.apk')) return Icons.android;
-    if (name.endsWith('.zip')) return Icons.archive;
-    return Icons.insert_drive_file;
-  }
+  // ---------------- FILE SIZE ----------------
 
-  String _getFileSize(File file) {
-    try {
-      int bytes = file.lengthSync();
-      if (bytes < 1024) return "$bytes B";
-      if (bytes < 1048576) return "${(bytes / 1024).toStringAsFixed(1)} KB";
-      return "${(bytes / 1048576).toStringAsFixed(1)} MB";
-    } catch (e) { return "File"; }
-  }
+  String _fileSize(FileSystemEntity entity) {
+    if (entity is File) {
+      try {
+        int bytes = entity.lengthSync();
 
-  Widget _buildErrorUI() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.sd_card_alert, size: 60, color: Colors.redAccent),
-          const SizedBox(height: 10),
-          Text(errorMessage!, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: () => openAppSettings(), child: const Text("Settings")),
-        ],
-      ),
-    );
+        if (bytes < 1024) return "$bytes B";
+        if (bytes < 1024 * 1024) {
+          return "${(bytes / 1024).toStringAsFixed(1)} KB";
+        }
+
+        return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
+      } catch (e) {
+        return "File";
+      }
+    }
+
+    return "";
   }
 }

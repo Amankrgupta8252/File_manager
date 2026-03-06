@@ -9,13 +9,13 @@ class ImageFoldersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      // backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        title: const Text("Gallery", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: const Text("Gallery", style: TextStyle(fontWeight: FontWeight.bold)),
+        // backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        // iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           IconButton(onPressed: () {
             Navigator.push(

@@ -1,20 +1,30 @@
+import 'dart:io';
+import 'package:file_manager/clean_up/view/clean_up_page.dart';
 import 'package:file_manager/modules/apps/view/apps_list_page.dart';
 import 'package:file_manager/modules/audio/view/audio_folders_page.dart';
 import 'package:file_manager/modules/document/view/doc_folders_page.dart';
 import 'package:file_manager/modules/downloads/view/downloads_page.dart';
 import 'package:file_manager/modules/favorites/view/favorites_page.dart';
+import 'package:file_manager/modules/home/view/folder_view_page.dart';
 import 'package:file_manager/modules/images/view/image_folders_page.dart';
 import 'package:file_manager/modules/internal_storage/view/InternalStoragePage.dart';
 import 'package:file_manager/modules/recent/view/recent_files_page.dart';
 import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:file_manager/modules/trash/view/system_bin_page.dart';
+import 'package:file_manager/modules/video/view/folder/folder_videos_page.dart';
 import 'package:file_manager/modules/video/view/video_folders_page.dart';
 import 'package:file_manager/sd_card/view/SDCardStoragePage.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:file_manager/models/category_model.dart';
 import 'package:file_manager/data/storage_provider.dart';
 import 'package:file_manager/data/file_storage_provider.dart';
+
+import '../../../data/quick_access_provider.dart';
+import '../../../models/quick_access_model.dart';
+import '../../../services/quick_access_service.dart';
+import '../../add_folder/view/add_folder_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,10 +40,15 @@ class _HomePageState extends State<HomePage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fileProvider = context.read<FileStorageProvider>();
+      final quickAccess = context.read<QuickAccessProvider>();
 
+      // File counts
       fileProvider.fetchMediaCounts();
       fileProvider.fetchDocuments();
-      fileProvider.fetchAppCount(); // 👈 YE MOST IMPORTANT LINE
+      fileProvider.fetchAppCount();
+
+      // Load Quick Access history
+      quickAccess.loadHistory();
     });
   }
 
@@ -77,7 +92,7 @@ class _HomePageState extends State<HomePage> {
         icon: Icons.file_download_outlined,
         color: Colors.brown,
         count: "${fileStorage.downloadsCount} files",
-        page:  DownloadsPage()
+        page: DownloadsPage(),
       ),
       FileCategory(
         name: "Apps",
@@ -174,23 +189,133 @@ class _HomePageState extends State<HomePage> {
                 ),
                 // --- QUICK ACTIONS ---
                 const SizedBox(height: 25),
+
+                Text(
+                  "Collections",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 15),
                 _buildQuickActionTile(
                   "Recent Files",
                   Icons.access_time,
-                  Colors.blueGrey,
+                  color: Colors.blueGrey,
                   pages: RecentFilesPage(),
                 ),
                 _buildQuickActionTile(
                   "Favorites",
                   Icons.star_border,
-                  Colors.amber,
+                  color: Colors.amber,
                   pages: FavoritesPage(),
                 ),
                 _buildQuickActionTile(
                   "Trash",
                   Icons.delete_outline,
-                  Colors.black,
+
                   pages: SystemBinPage(),
+                ),
+                SizedBox(height: 2),
+                _buildCategoryTile(
+                  FileCategory(
+                    name: "Create Folder",
+                    icon: Icons.create_new_folder_outlined,
+                    color: Colors.indigo,
+                    count: "Create new",
+                  ),
+                  _showCreateFolderDialog,
+                ),
+                SizedBox(height: 25),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.history, size: 20, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text(
+                          "Quick Access",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    FutureBuilder<List<String>>(
+                      future: QuickAccessService.getFolders(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text("No recent folders"),
+                          );
+                        }
+
+                        return Column(
+                          children: snapshot.data!.map((path) {
+                            String folderName = p.basename(path);
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+
+                              child: _buildCategoryTile(
+                                FileCategory(
+                                  name: folderName,
+                                  icon: Icons.folder_open,
+                                  color: Colors.deepPurple,
+                                  count: path,
+                                ),
+
+                                () {
+                                  openFolder(context, path);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                SizedBox(height: 15),
+
+                SizedBox(height: 15),
+                _buildCategoryTile(
+                  FileCategory(
+                    name: "Add Folder",
+                    icon: Icons.create_new_folder_outlined,
+                    color: Colors.indigoAccent,
+                    count: "Select files",
+                  ),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddFolderPage(),
+                      ),
+                    );
+                  },
+                ),
+                SizedBox(height: 10,),
+                _buildCategoryTile(
+                  FileCategory(
+                    name: "Clean Up",
+                    icon: Icons.cleaning_services_rounded,
+                    count: "count",
+                    color: Color(0xff9c6602),
+                  ),
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CleanUpPage()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -298,10 +423,11 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).focusColor.withOpacity(0.03),
+          // color: Colors.blue.shade50,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5),
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 0),
           ],
         ),
         child: Row(
@@ -310,7 +436,7 @@ class _HomePageState extends State<HomePage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: category.color.withOpacity(0.1),
+                color: category.color?.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(category.icon, color: category.color),
@@ -329,10 +455,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    category.count,
-                    style: const TextStyle(color: Colors.grey, fontSize: 10),
-                  ),
+                  Text(category.count, style: TextStyle(fontSize: 10)),
                 ],
               ),
             ),
@@ -419,7 +542,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickActionTile(String title, IconData icon, Color color, {Widget? pages}) {
+  Widget _buildQuickActionTile(
+    String title,
+    IconData icon, {
+    Color? color,
+    Widget? pages,
+  }) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
@@ -441,6 +569,67 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
+    );
+  }
+
+  void _showCreateFolderDialog() {
+    TextEditingController controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Create Folder"),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: "Enter folder name"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                await _createFolder(controller.text);
+                Navigator.pop(context);
+              },
+              child: const Text("Create"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _createFolder(String name) async {
+    try {
+      final path = "/storage/emulated/0/MyFiles/$name";
+
+      final directory = Directory(path);
+
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Folder Created")));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Folder already exists")));
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+  void openFolder(BuildContext context, String path) async {
+    await QuickAccessService.trackFolder(path);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => FolderViewPage(path: path)),
     );
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class FileCategory {
   final String name;
   final IconData icon;
-  final Color color;
+  final Color? color;
   final String count;
   final Widget? page;
 

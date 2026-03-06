@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
+import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -160,4 +161,42 @@ class FileStorageProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  //
+
+
+
+  List<FileSystemEntity> _clipboard = [];
+  bool _isMoveMode = false; // true = Move (Cut), false = Copy
+
+  List<FileSystemEntity> get clipboard => _clipboard;
+  bool get isMoveMode => _isMoveMode;
+
+  // Clipboard mein files dalne ke liye
+  void copyToClipboard(List<FileSystemEntity> files, {bool isMove = false}) {
+    _clipboard = List.from(files);
+    _isMoveMode = isMove;
+    notifyListeners();
+  }
+
+  // Paste karne ka logic
+  Future<void> pasteFiles(String destinationPath) async {
+    for (var entity in _clipboard) {
+      final String newPath = p.join(destinationPath, p.basename(entity.path));
+
+      if (entity is File) {
+        if (_isMoveMode) {
+          await entity.rename(newPath); // Move
+        } else {
+          await entity.copy(newPath); // Copy
+        }
+      } else if (entity is Directory) {
+        // Folders ke liye recursive copy/move logic yahan aayega
+      }
+    }
+    _clipboard.clear();
+    notifyListeners();
+  }
+
+
 }

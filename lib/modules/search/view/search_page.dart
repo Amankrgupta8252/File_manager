@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'package:file_manager/data/quick_access_provider.dart';
+import 'package:file_manager/models/quick_access_model.dart';
+import 'package:file_manager/modules/document/view/folder/folder_doc_page.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
@@ -17,16 +20,36 @@ class _SearchPageState extends State<SearchPage> {
   Set<FileSystemEntity> selectedFiles = {};
   bool isSelectionMode = false;
 
-  // --- FILE OPEN FUNCTION ---
+  // --- 1. FILE OPEN FUNCTION ---
   void _openFile(String path) async {
     final result = await OpenFile.open(path);
-
-    // Agar koi error aaye (jaise app nahi mili open karne ke liye)
     if (result.type != ResultType.done) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Could not open file: ${result.message}")),
       );
     }
+  }
+
+  // --- 2. FOLDER OPEN FUNCTION (With History Update) ---
+  void _openFolder(String folderPath) {
+    final folderName = p.basename(folderPath);
+    final folder = QuickAccessFolder(name: folderName, path: folderPath);
+
+    // ✅ History mein add karo
+    context.read<QuickAccessProvider>().addToHistory(folder);
+
+    // ✅ Folder Page par navigate karo
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FolderDocsPage(
+          folderName: folderName,
+          files: Directory(folderPath).existsSync()
+              ? Directory(folderPath).listSync().whereType<File>().toList()
+              : [],
+        ),
+      ),
+    );
   }
 
   void _toggleSelection(FileSystemEntity file) {
@@ -46,10 +69,8 @@ class _SearchPageState extends State<SearchPage> {
     final provider = Provider.of<StorageProvider>(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.white,
         title: isSelectionMode
             ? Text("${selectedFiles.length} Selected")
             : TextField(
@@ -66,7 +87,7 @@ class _SearchPageState extends State<SearchPage> {
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                // Delete logic yahan aayega (jo pichle message mein diya tha)
+                // Delete logic yahan add karein
               },
             )
         ],
@@ -86,13 +107,11 @@ class _SearchPageState extends State<SearchPage> {
               if (isSelectionMode) {
                 _toggleSelection(file);
               } else {
+                // ✅ Check: File hai ya Folder
                 if (file is File) {
-                  _openFile(file.path); // 👈 File open hogi
-                } else {
-                  // Agar folder hai toh aap apne InternalStoragePage par navigate kar sakte hain
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Opening folders from search coming soon")),
-                  );
+                  _openFile(file.path);
+                } else if (file is Directory) {
+                  _openFolder(file.path); // 👈 Folder open hoga + history banegi
                 }
               }
             },
