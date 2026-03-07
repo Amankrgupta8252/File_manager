@@ -17,7 +17,10 @@ class WavePainter extends CustomPainter {
     path.moveTo(0, yOffset);
 
     for (double i = 0; i <= size.width; i++) {
-      path.lineTo(i, yOffset + sin((i / size.width * 2 * pi) + (value * 2 * pi)) * 8);
+      path.lineTo(
+          i,
+          yOffset + sin((i / size.width * 2 * pi) + (value * 2 * pi)) * 8
+      );
     }
 
     path.lineTo(size.width, size.height);

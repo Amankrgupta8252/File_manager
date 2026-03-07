@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:file_manager/clean_up/view/clean_up_page.dart';
 import 'package:file_manager/modules/apps/view/apps_list_page.dart';
 import 'package:file_manager/modules/audio/view/audio_folders_page.dart';
 import 'package:file_manager/modules/document/view/doc_folders_page.dart';
@@ -25,6 +24,7 @@ import '../../../data/quick_access_provider.dart';
 import '../../../models/quick_access_model.dart';
 import '../../../services/quick_access_service.dart';
 import '../../add_folder/view/add_folder_page.dart';
+import '../../clean_up/view/clean_up_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -283,9 +283,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                SizedBox(height: 15),
 
-                SizedBox(height: 15),
                 _buildCategoryTile(
                   FileCategory(
                     name: "Add Folder",
