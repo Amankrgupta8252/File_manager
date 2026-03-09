@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../../data/file_storage_provider.dart';
+import '../../../utils/data/file_storage_provider.dart';
 import '../../file_explorer/view/file_action_bar.dart';
 
 class AudioFoldersPage extends StatefulWidget {

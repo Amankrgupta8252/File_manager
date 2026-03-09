@@ -5,8 +5,13 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
+import '../../core/services/file_cache_service.dart';
+import '../../core/services/file_operations_service.dart';
 
 class FileStorageProvider extends ChangeNotifier {
+  final FileCacheService _cache = FileCacheService();
+  final FileOperationsService _fileOps = FileOperationsService();
+  
   int imageCount = 0;
   int videoCount = 0;
   int audioCount = 0;
@@ -17,6 +22,7 @@ class FileStorageProvider extends ChangeNotifier {
   int systemCount = 0;
   bool isMediaLoading = false;
   bool isDocLoading = false;
+  bool isDownloadsLoading = false;
 
   Future<void> fetchMediaCounts() async {
     isMediaLoading = true;
@@ -150,14 +156,32 @@ class FileStorageProvider extends ChangeNotifier {
   List<FileSystemEntity> downloadFiles = [];
 
   Future<void> fetchDownloadFiles() async {
-    final directory = Directory("/storage/emulated/0/Download");
-    if (directory.existsSync()) {
-      List<FileSystemEntity> allFiles = directory.listSync();
-
-      downloadsCount = allFiles.whereType<File>().length;
-
-      allFiles.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
-      downloadFiles = allFiles;
+    isDownloadsLoading = true;
+    notifyListeners();
+    
+    try {
+      final directory = Directory("/storage/emulated/0/Download");
+      
+      // Check cache first
+      final cachedFiles = _cache.getCachedFiles(directory.path);
+      if (cachedFiles != null) {
+        downloadFiles = cachedFiles;
+        downloadsCount = cachedFiles.whereType<File>().length;
+        notifyListeners();
+        return;
+      }
+      
+      if (directory.existsSync()) {
+        downloadFiles = await _fileOps.listDirectoryFiles(directory.path);
+        downloadsCount = downloadFiles.whereType<File>().length;
+        
+        // Cache the results
+        _cache.cacheFiles(directory.path, downloadFiles);
+      }
+    } catch (e) {
+      debugPrint('Error fetching download files: $e');
+    } finally {
+      isDownloadsLoading = false;
       notifyListeners();
     }
   }
@@ -179,22 +203,37 @@ class FileStorageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Paste karne ka logic
   Future<void> pasteFiles(String destinationPath) async {
-    for (var entity in _clipboard) {
+    final files = List<FileSystemEntity>.from(_clipboard);
+    
+    for (int i = 0; i < files.length; i++) {
+      final entity = files[i];
       final String newPath = p.join(destinationPath, p.basename(entity.path));
 
-      if (entity is File) {
-        if (_isMoveMode) {
-          await entity.rename(newPath); // Move
-        } else {
-          await entity.copy(newPath); // Copy
+      try {
+        if (entity is File) {
+          if (_isMoveMode) {
+            await entity.rename(newPath);
+          } else {
+            await entity.copy(newPath);
+          }
+        } else if (entity is Directory) {
+          if (_isMoveMode) {
+            await _fileOps.moveFiles([entity], destinationPath);
+          } else {
+            await _fileOps.copyFiles([entity as File], destinationPath);
+          }
         }
-      } else if (entity is Directory) {
-        // Folders ke liye recursive copy/move logic yahan aayega
+      } catch (e) {
+        debugPrint('Error pasting ${entity.path}: $e');
       }
     }
+    
     _clipboard.clear();
+    
+    // Invalidate cache for destination
+    _cache.invalidateDirectory(destinationPath);
+    
     notifyListeners();
   }
 

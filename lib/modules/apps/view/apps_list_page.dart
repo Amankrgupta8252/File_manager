@@ -75,7 +75,7 @@ class _AppsListPageState extends State<AppsListPage> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade200),
+                  // side: BorderSide(color: Colors.grey.shade200),
                 ),
                 child: ListTile(
                   leading: app.icon != null
@@ -94,7 +94,7 @@ class _AppsListPageState extends State<AppsListPage> {
                   ),
                   // --- UNINSTALL BUTTON ---
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.black),
+                    icon: const Icon(Icons.delete_outline),
                     onPressed: () => _uninstallApp(app.packageName),
                   ),
                   onTap: () => InstalledApps.startApp(app.packageName),

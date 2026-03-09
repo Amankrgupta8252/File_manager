@@ -1,12 +1,13 @@
 import 'dart:io';
-import 'package:file_manager/data/quick_access_provider.dart';
 import 'package:file_manager/models/quick_access_model.dart';
 import 'package:file_manager/modules/document/view/folder/folder_doc_page.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
-import 'package:file_manager/data/storage_provider.dart';
 import 'package:path/path.dart' as p;
+
+import '../../../utils/data/quick_access_provider.dart';
+import '../../../utils/data/storage_provider.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});

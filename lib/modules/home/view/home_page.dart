@@ -10,21 +10,18 @@ import 'package:file_manager/modules/internal_storage/view/InternalStoragePage.d
 import 'package:file_manager/modules/recent/view/recent_files_page.dart';
 import 'package:file_manager/modules/search/view/search_page.dart';
 import 'package:file_manager/modules/trash/view/system_bin_page.dart';
-import 'package:file_manager/modules/video/view/folder/folder_videos_page.dart';
 import 'package:file_manager/modules/video/view/video_folders_page.dart';
-import 'package:file_manager/sd_card/view/SDCardStoragePage.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:file_manager/models/category_model.dart';
-import 'package:file_manager/data/storage_provider.dart';
-import 'package:file_manager/data/file_storage_provider.dart';
-
-import '../../../data/quick_access_provider.dart';
-import '../../../models/quick_access_model.dart';
 import '../../../services/quick_access_service.dart';
+import '../../../utils/data/file_storage_provider.dart';
+import '../../../utils/data/quick_access_provider.dart';
+import '../../../utils/data/storage_provider.dart';
 import '../../add_folder/view/add_folder_page.dart';
 import '../../clean_up/view/clean_up_page.dart';
+import '../../sd_card/view/SDCardStoragePage.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

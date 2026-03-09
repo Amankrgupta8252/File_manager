@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import '../../../data/quick_access_provider.dart';
+import '../../../utils/data/quick_access_provider.dart';
 import '../../../models/quick_access_model.dart';
 import '../../../services/quick_access_service.dart';
 import '../../home/view/folder_view_page.dart';

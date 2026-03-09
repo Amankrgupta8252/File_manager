@@ -1,11 +1,10 @@
-import 'package:file_manager/data/file_storage_provider.dart';
-import 'package:file_manager/data/storage_provider.dart';
 import 'package:file_manager/modules/home/view/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:media_store_plus/media_store_plus.dart';
-
-import 'data/quick_access_provider.dart';
+import 'utils/data/file_storage_provider.dart';
+import 'utils/data/quick_access_provider.dart';
+import 'utils/data/storage_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +13,6 @@ void main() async {
 
   runApp(
     MultiProvider(
-
       providers: [
         ChangeNotifierProvider(create: (_) => StorageProvider()),
         ChangeNotifierProvider(create: (_) => FileStorageProvider()),

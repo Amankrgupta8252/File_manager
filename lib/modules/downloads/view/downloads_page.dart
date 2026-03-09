@@ -4,9 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
-import 'package:file_manager/data/file_storage_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
+import '../../../utils/data/file_storage_provider.dart';
 import '../../file_explorer/view/file_action_bar.dart';
 import '../../internal_storage/view/InternalStoragePage.dart';
 

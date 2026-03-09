@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -8,6 +7,7 @@ import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../file_explorer/view/file_action_bar.dart';
+import '../../search/view/search_page.dart';
 
 class RecentFilesPage extends StatefulWidget {
   const RecentFilesPage({super.key});
@@ -172,7 +172,7 @@ class _RecentFilesPageState extends State<RecentFilesPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.black)),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -229,6 +229,20 @@ class _RecentFilesPageState extends State<RecentFilesPage> {
         // backgroundColor: Colors.white,
         elevation: 0.5,
         // iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          if (!isSelectionMode)
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SearchPage()),
+                );
+              },
+              icon: const Icon(Icons.search),
+            ),
+
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

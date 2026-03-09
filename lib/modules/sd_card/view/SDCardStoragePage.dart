@@ -6,9 +6,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:file_manager/data/storage_provider.dart';
-import '../../modules/search/view/search_page.dart';
-import '../../modules/file_explorer/view/file_action_bar.dart';
+import '../../../utils/data/storage_provider.dart';
+import '../../file_explorer/view/file_action_bar.dart';
+import '../../search/view/search_page.dart';
 
 class SDCardStoragePage extends StatefulWidget {
   final String? customPath;

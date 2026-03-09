@@ -1,6 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:photo_manager/photo_manager.dart';
-import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
+import '../../../utils/trash_scanner.dart';
 
 class SystemBinPage extends StatefulWidget {
   const SystemBinPage({super.key});
@@ -10,79 +10,90 @@ class SystemBinPage extends StatefulWidget {
 }
 
 class _SystemBinPageState extends State<SystemBinPage> {
-  List<AssetEntity> trashedAssets = [];
-  bool isLoading = true;
+
+  List<FileSystemEntity> files = [];
+  bool loading = true;
+  double trashSize = 0;
 
   @override
   void initState() {
     super.initState();
-    _fetchSystemTrash();
+    loadTrash();
   }
 
-  Future<void> _fetchSystemTrash() async {
-    setState(() => isLoading = true);
+  Future<void> loadTrash() async {
 
-    try {
-      // 1. Correct Permission Method
-      final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      if (!ps.isAuth) {
-        setState(() => isLoading = false);
-        return;
-      }
+    setState(() => loading = true);
 
-      // 2. Filter setup (Isse simple rakhein)
-      final filter = FilterOptionGroup();
+    final scanned = await TrashScanner.scanTrash();
+    final size = await TrashScanner.getTrashSize();
 
-      // 3. getAssetPathList mein 'containsPathEntity' ko yahan pass karein
-      final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
-        type: RequestType.common,
-        filterOption: filter,
-        onlyAll: false, // Saare folders check karne ke liye false rakhein
-      );
+    setState(() {
+      files = scanned;
+      trashSize = size;
+      loading = false;
+    });
+  }
 
-      List<AssetEntity> allTrashed = [];
+  Future<void> clearTrash() async {
 
-      for (var path in paths) {
-        // Android system mein aksar '.trash' ya 'Trash' folder hota hai
-        String folderName = path.name.toLowerCase();
+    await TrashScanner.clearTrash();
 
-        if (folderName.contains('trash') || folderName.contains('bin')) {
-          final list = await path.getAssetListPaged(page: 0, size: 100);
-          allTrashed.addAll(list);
-        }
-      }
+    loadTrash();
 
-      setState(() {
-        trashedAssets = allTrashed;
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Error: $e");
-      setState(() => isLoading = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Trash cleaned")),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Trash")),
-      body: isLoading
+      appBar: AppBar(
+        title: const Text("System Trash"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: clearTrash,
+          )
+        ],
+      ),
+
+      body: loading
           ? const Center(child: CircularProgressIndicator())
-          : trashedAssets.isEmpty
-          ? const Center(child: Text("No files found in System Bin"))
-          : GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, crossAxisSpacing: 5, mainAxisSpacing: 5
-        ),
-        itemCount: trashedAssets.length,
-        itemBuilder: (context, index) {
-          return AssetEntityImage(
-            trashedAssets[index],
-            isOriginal: false,
-            fit: BoxFit.cover,
-          );
-        },
+          : files.isEmpty
+          ? const Center(child: Text("No files in Trash"))
+          : Column(
+        children: [
+
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Text(
+              "Trash Size: ${trashSize.toStringAsFixed(2)} GB",
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: ListView.builder(
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+
+                File file = files[index] as File;
+
+                return ListTile(
+                  leading: const Icon(Icons.insert_drive_file),
+                  title: Text(file.path.split('/').last),
+                  subtitle: Text(file.path),
+                );
+              },
+            ),
+          )
+        ],
       ),
     );
   }
